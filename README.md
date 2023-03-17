@@ -1,92 +1,410 @@
 # GCELL-infra
 
+## 인프라 설정파일
 
+### API Server
 
-## Getting started
+**DockerFile**
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin http://mentoring-gitlab.gabia.com/mentee/mentee_2023.01/team/weat/gcell-infra.git
-git branch -M main
-git push -uf origin main
+```Dockerfile
+FROM openjdk:17
+COPY build/libs/*.jar app/app.jar
+WORKDIR /app
+ENTRYPOINT ["java", "-Xmx1024m","-jar","app.jar"]
 ```
 
-## Integrate with your tools
+**docker-compose.yml**
 
-- [ ] [Set up project integrations](http://mentoring-gitlab.gabia.com/mentee/mentee_2023.01/team/weat/gcell-infra/-/settings/integrations)
+```yml
+version: "3.9"
 
-## Collaborate with your team
+networks:
+  gcell-api-servertmp_default:
+    external: true
+  api-db_default:
+    external: true
+  minio_default:
+    external: true
+  rabbitmq_default:
+    external: true
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+services:
+  api-was:
+    image: mentoring-gitlab.gabia.com:5050/mentee/mentee_2023.01/team/weat/gcell-api-server:latest
+    working_dir: /app
+    command: ["./gradlew", "bootrun", "--spring.profiles.active=prod"]
+    restart: on-failure
+    expose:
+      - "8080"
+      - "8081"
+    networks:
+      - gcell-api-servertmp_default
+      - api-db_default
+      - minio_default
+      - rabbitmq_default
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1500M
+    logging:
+      driver: json-file
+      options:
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    environment:
+      - TZ=Asia/Seoul
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/api/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+```
+<br>
 
-## Test and Deploy
+---
 
-Use the built-in continuous integration in GitLab.
+### Excel Server
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+**DockerFile**
 
-***
+```Dockerfile
+FROM openjdk:17
+COPY build/libs/*.jar app/app.jar
+WORKDIR /app
+ENTRYPOINT ["java", "-Xmx1024m","-jar","app.jar"]
+```
 
-# Editing this README
+**docker-compose.yml**
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```yml
+version: "3.9"
 
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+networks:
+  excel-db_default:
+    external: true
+  minio_default:
+    external: true
+  rabbitmq_default:
+    external: true
 
-## Name
-Choose a self-explaining name for your project.
+services:
+  excel-was:
+    image: mentoring-gitlab.gabia.com:5050/mentee/mentee_2023.01/team/weat/gcell-excel-server:latest
+    working_dir: /app
+    command: ["./gradlew", "bootrun"]
+    restart: on-failure
+    expose:
+      - "8080"
+      - "8081"
+    networks:
+      - excel-db_default
+      - minio_default
+      - rabbitmq_default
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "7"
+          memory: 1500M
+    logging:
+      driver: json-file
+      options:
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    environment:
+      - TZ=Asia/Seoul
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+```
+<br>
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+---
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+### Webserber, Frontend
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+**Dockerfile**
+```Dockerfile
+FROM node:16-alpine as build-stage
+WORKDIR /app
+ADD . .
+RUN npm install
+RUN npm run build
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+# production stage
+FROM nginx:stable-alpine as production-stage
+COPY --from=build-stage /app/dist /usr/share/nginx/html
+COPY ./nginx/nginx.conf /etc/nginx/nginx.conf
+COPY ./nginx/mime.types /etc/nginx/mime.types
+RUN chmod -R 755 /usr/share/nginx/html
+CMD ["nginx", "-g", "daemon off;"]
+```
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+**nginx.conf**
+```conf
+user  root;
+pid        /var/run/nginx.pid;
+worker_rlimit_nofile 8192;
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+events{
+    worker_connections  1024;
+}
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+http {
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+    sendfile        on;
+    keepalive_timeout  65;
+    client_max_body_size 2000M;
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+    server {
+        listen       80 default_server;
+        listen      [::]:80 default_server;
+        server_name  _;
 
-## License
-For open source projects, say how it is licensed.
+        root   /usr/share/nginx/html;
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+
+        location ^~ /api {
+           
+            proxy_http_version 1.1;
+            proxy_set_header   Connection "";
+            proxy_pass http://api-was:8080/api;
+            proxy_connect_timeout 600;      
+            proxy_send_timeout 600;      
+            proxy_read_timeout 600;      
+            send_timeout 600;   
+        }
+
+        }
+
+}
+```
+
+**docker-compose.yml**
+```yml
+version: '3.9'
+
+networks:
+  gcell-api-servertmp_default:
+    external: true
+
+services:
+  fe-ws:
+    image: mentoring-gitlab.gabia.com:5050/mentee/mentee_2023.01/team/weat/gcell-frontend:latest
+    ports:
+      - "80:80"
+    restart: always
+    networks:
+      - default
+      - gcell-api-servertmp_default
+    logging:
+      driver: json-file
+      options:
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    environment:
+      - TZ=Asia/Seoul
+```
+
+<br>
+
+---
+
+### RabbitMQ
+
+**docker-compose.yml**
+```yml
+version: "3.9"
+
+networks:
+  rabbitmq_default:
+    external: true
+
+services:
+  rabbitmq:
+    image: 'rabbitmq:3.11.8-management'
+    ports:
+      # The standard AMQP protocol port
+      - '5672:5672'
+      # HTTP management UI
+      - '15672:15672'
+    restart: always
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+      - ./my_definition.json:/etc/rabbitmq/my_definition.json
+    networks:
+      - rabbitmq_default
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 1024M
+```
+<br>
+
+---
+
+### API DB
+
+**docker-compose**
+```yml
+version: "3.9"
+
+networks:
+  api-db_default:
+    external: true
+
+services:
+  db:
+    image: mysql:8.0.31
+    restart: always
+    volumes:
+      - ./mysqldata:/var/lib/mysql
+    networks:
+      - api-db_default
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 1024M
+```
+<br>
+
+---
+
+### EXCEL DB
+
+
+
+**docker-compose**
+```yml
+version: "3.9"
+
+networks:
+  excel-db_default:
+    external: true
+
+services:
+  db:
+    container_name: excel-db
+    image: mysql:8.0.31
+    restart: always
+    volumes:
+      - ./mysqldata:/var/lib/mysql
+    networks:
+      - excel-db_default
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1024M
+```
+<br>
+
+---
+
+### MinIO
+
+**docker-compose.yml**
+```yml
+version: "3.9"
+
+networks:
+  minio_default:
+    external: true
+
+services:
+  minio:
+    image: minio/minio:RELEASE.2023-01-31T02-24-19Z
+    command: server /data --console-address ":9001"
+    restart: always
+    shm_size: '1gb'
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./data:/data
+    networks:
+      - minio_default
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+```
+<br>
+
+---
+
+### Monitoring
+
+**docker-compose.yml**
+```yml
+version: '3.9'
+networks:
+  monitor:
+    driver: bridge
+  gcell-api-servertmp_default:
+    external: true
+  excel-db_default:
+    external: true
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./pm/:/etc/prometheus/
+      - ./data:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - monitor
+      - gcell-api-servertmp_default
+      - excel-db_default
+    restart: always
+  grafana:
+     container_name: grafana
+     image: grafana/grafana:latest
+     user: root
+     volumes:
+       - ./grafana/data/grafana.ini/grafana.ini:/etc/grafana/grafana.ini
+       - ./grafana/data:/var/lib/grafana
+       - ./grafana/provisioning:/etc/grafana/provisioning
+     ports:
+       - "3000:3000"
+     depends_on:
+       - prometheus
+     networks:
+       - monitor
+     restart: always
+  loki:
+    image: grafana/loki
+    expose:
+      - 3100
+    volumes:
+      - ./loki/config/loki-config.yml:/etc/loki/local-config.yml
+    networks:
+      - monitor
+
+  promtail:
+    image: grafana/promtail
+    volumes:
+      - ./loki/config/promtail-config.yml:/etc/promtail/config.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers
+    networks:
+      - monitor
+    restart: always
+
+```

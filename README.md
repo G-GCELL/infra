@@ -125,7 +125,7 @@ services:
 
 ---
 
-### Webserber, Frontend
+### Webserver, Frontend
 
 **Dockerfile**
 ```Dockerfile

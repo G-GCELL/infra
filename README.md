@@ -33,7 +33,7 @@ services:
     image: mentoring-gitlab.gabia.com:5050/mentee/mentee_2023.01/team/weat/gcell-api-server:latest
     working_dir: /app
     command: ["./gradlew", "bootrun", "--spring.profiles.active=prod"]
-    restart: on-failure
+    restart: always
     expose:
       - "8080"
       - "8081"
@@ -94,7 +94,7 @@ services:
     image: mentoring-gitlab.gabia.com:5050/mentee/mentee_2023.01/team/weat/gcell-excel-server:latest
     working_dir: /app
     command: ["./gradlew", "bootrun"]
-    restart: on-failure
+    restart: always
     expose:
       - "8080"
       - "8081"

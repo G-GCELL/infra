@@ -1,5 +1,11 @@
 # GCELL-infra
 
+## 인프라 아키텍처
+
+
+![image](https://mentoring-gitlab.gabia.com/mentee/mentee_2023.01/team/weat/gcell-api-server/uploads/b394e3e9c5ad7b440d3b51ccc316f81c/%EC%95%84%ED%82%A4%ED%85%8D%EC%B2%98.png)
+
+
 ## 인프라 설정파일
 
 ### API Server
